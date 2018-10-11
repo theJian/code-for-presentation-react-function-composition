@@ -1,130 +1,94 @@
 import React, { Component } from 'react';
+import compose from './compose.js';
+import eqProp from './eqProp.js';
+import hasProp from './hasProp.js';
 import request from './request.js';
 import logo from './logo.svg';
+import { typePet, typeBait } from './types.js';
 import './App.css';
 
-class App extends Component {
-  state = {
+import withProps from './withProps.js';
+import cond from './cond.js';
+import prepare from './prepare.js';
+import withState from './withState';
+import render from './render';
+
+import PetList from './PetList';
+
+const petFavoured = {
+  [typePet.Dog]: typeBait.Meat,
+  [typePet.Cat]: typeBait.Fish,
+  [typePet.Mice]: typeBait.Peanut,
+};
+const findInterestedPets = ({ petList, bait }) => ({
+  petList: petList.filter(pet => petFavoured[pet] === bait)
+});
+
+const InterestedPetList = cond(
+  [hasProp('bait'), withProps(findInterestedPets)]
+)(PetList);
+
+const PetButtons = ({ onClicks }) => (
+  <div>
+    <button onClick={onClicks[0]}>
+      Add Dog
+    </button>
+    <button onClick={onClicks[1]}>
+      Add Cat
+    </button>
+    <button onClick={onClicks[2]}>
+      Add Mice
+    </button>
+  </div>
+);
+
+const BaitButtons = ({ onClicks }) => (
+  <div>
+    <button onClick={onClicks[0]}>
+      Only Dog
+    </button>
+    <button onClick={onClicks[1]}>
+      Only Cat
+    </button>
+    <button onClick={onClicks[2]}>
+      Only Mice
+    </button>
+    <button onClick={onClicks[3]}>
+      Clear
+    </button>
+  </div>
+);
+
+const Loading = () => (
+  <div className="Loading">
+    <img className="Loading-logo" src={logo} />
+  </div>
+);
+
+const App = ({ onAddPet, onSelectBait, petList, bait }) => (
+  <div className="App">
+    <PetButtons
+      onClicks={[typePet.Dog, typePet.Cat, typePet.Mice].map(t => onAddPet.bind(null, t))}
+    />
+    <BaitButtons
+      onClicks={[typeBait.Meat, typeBait.Fish, typePet.Peanut, null].map(t => onSelectBait.bind(null, t))}
+    />
+    <InterestedPetList petList={petList} bait={bait}/>
+  </div>
+)
+
+export default compose(
+  withState({
     petList: [],
     ready: false,
     bait: null,
-  }
-
-  typePet = {
-    Dog: 'Dog',
-    Cat: 'Cat',
-    Mice: 'Mice',
-  }
-
-  typeBait = {
-    Meat: 'Meat',
-    Fish: 'Fish',
-    Peanut: 'Peanut',
-  }
-
-  PetFavoured = {
-    [this.typePet.Dog]: this.typeBait.Meat,
-    [this.typePet.Cat]: this.typeBait.Fish,
-    [this.typePet.Mice]: this.typeBait.Peanut,
-  }
-
-  componentDidMount() {
-    request().then(() => {
-      this.setState({
-        ready: true
-      })
-    })
-  }
-
-  addPet = (pet) => {
-    this.setState(({ petList }) => ({
-      petList: [...petList, pet]
-    }));
-  }
-
-  setBait = (bait) => {
-    this.setState({
-      bait
-    });
-  }
-
-  findInterestedPets = () => {
-    const { petList, bait } = this.state;
-    if (!bait) return petList;
-    return petList.filter(pet => {
-      return this.PetFavoured[pet] === bait
-    })
-  }
-
-  renderLoading = () => (
-    <div className="Loading">
-      <img className="Loading-logo" src={logo} />
-    </div>
+  }, {
+    onAddPet: ({ petList }) => pet => ({ petList: [...petList, pet] }),
+    onSelectBait: () => bait => ({ bait }),
+    onReady: () => () => ({ ready: true }),
+  }),
+  prepare(({ onReady }) => request().then(onReady)),
+  cond(
+    [eqProp('ready', false), render(Loading)]
   )
-
-  renderPetButtons = () => (
-    <div>
-      <button onClick={this.addPet.bind(null, this.typePet.Dog)}>
-        Add Dog
-      </button>
-      <button onClick={this.addPet.bind(null, this.typePet.Cat)}>
-        Add Cat
-      </button>
-      <button onClick={this.addPet.bind(null, this.typePet.Mice)}>
-        Add Mice
-      </button>
-    </div>
-  )
-
-  renderBaitButtons = () => (
-    <div>
-      <button onClick={this.setBait.bind(null, this.typeBait.Meat)}>
-        Only Dog
-      </button>
-      <button onClick={this.setBait.bind(null, this.typeBait.Fish)}>
-        Only Cat
-      </button>
-      <button onClick={this.setBait.bind(null, this.typeBait.Peanut)}>
-        Only Mice
-      </button>
-      <button onClick={this.setBait.bind(null, null)}>
-        Clear
-      </button>
-    </div>
-  )
-
-  renderPetList = (petList) => (
-    <div>
-      <ul>
-        {petList.map((pet, key) => {
-          if (pet === 'Dog') return (
-            <li className="Dog" key={key}>🐶 Dog</li>
-          )
-
-          if (pet === 'Cat') return (
-            <li className="Cat" key={key}>🐱 Cat</li>
-          )
-
-          return <li className="Mice" key={key}>🐁 Mice</li>
-        })}
-      </ul>
-    </div>
-  )
-
-  render() {
-    const { ready } = this.state;
-    if (!ready) {
-      return this.renderLoading();
-    }
-
-    return (
-      <div className="App">
-        {this.renderPetButtons()}
-        {this.renderBaitButtons()}
-        {this.renderPetList(this.findInterestedPets())}
-      </div>
-    );
-  }
-}
-
-export default App;
+)(App);
