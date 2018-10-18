@@ -8,6 +8,7 @@ const typeBait = {
   Meat: 'Meat',
   Fish: 'Fish',
   Peanut: 'Peanut',
+  Nil: 'Nil',
 }
 
 export {

@@ -12,16 +12,16 @@ const mapValues = (obj, func) => {
   return result
 }
 
-const withStateHandlers = (initialState, stateUpdaters) => BaseComponent => {
+const withStateHandlers = ({ init, updaters }) => BaseComponent => {
   const factory = createFactory(BaseComponent)
 
   class WithStateHandlers extends Component {
-    state = typeof initialState === 'function'
-      ? initialState(this.props)
-      : initialState
+    state = typeof init === 'function'
+      ? init(this.props)
+      : init
 
-    stateUpdaters = mapValues(
-      stateUpdaters,
+    updaters = mapValues(
+      updaters,
       handler => (mayBeEvent, ...args) => {
         // Having that functional form of setState can be called async
         // we need to persist SyntheticEvent
@@ -39,7 +39,7 @@ const withStateHandlers = (initialState, stateUpdaters) => BaseComponent => {
       return factory({
         ...this.props,
         ...this.state,
-        ...this.stateUpdaters,
+        ...this.updaters,
       })
     }
   }

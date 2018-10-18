@@ -5,10 +5,9 @@ const nest = (...Components) => BaseComponent => {
   const wrapperFactories = Components.map(createFactory)
 
   const Nest = props =>
-    wrapperFactories.reduceRight(
-      (child, factory) => factory(null, child),
-      baseFactories(props),
-    )
+    baseFactories(props, ...(
+      wrapperFactories.map(factory => factory(props))
+    ))
 
   return Nest;
 }

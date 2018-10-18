@@ -1,19 +1,24 @@
-import React, { Component } from 'react';
+import React from 'react';
 import compose from './compose.js';
 import eqProp from './eqProp.js';
-import hasProp from './hasProp.js';
+import not from './not.js';
 import request from './request.js';
 import logo from './logo.svg';
 import { typePet, typeBait } from './types.js';
 import './App.css';
 
+import nest from './nest.js';
 import withProps from './withProps.js';
 import cond from './cond.js';
 import prepare from './prepare.js';
-import withState from './withState';
 import render from './render';
+import withState from './withState';
+import queue from './queue.js';
+import dice from './dice.js';
+import coin from './coin.js';
 
-import PetList from './PetList';
+import ButtonGroup from './ButtonGroup.js';
+import List from './List.js';
 
 const petFavoured = {
   [typePet.Dog]: typeBait.Meat,
@@ -24,40 +29,42 @@ const findInterestedPets = ({ petList, bait }) => ({
   petList: petList.filter(pet => petFavoured[pet] === bait)
 });
 
-const InterestedPetList = cond(
-  [hasProp('bait'), withProps(findInterestedPets)]
-)(PetList);
 
-const PetButtons = ({ onClicks }) => (
-  <div>
-    <button onClick={onClicks[0]}>
-      Add Dog
-    </button>
-    <button onClick={onClicks[1]}>
-      Add Cat
-    </button>
-    <button onClick={onClicks[2]}>
-      Add Mice
-    </button>
-  </div>
-);
+const petLabelText = {
+  [typePet.Dog]: 'Dog',
+  [typePet.Cat]: 'Cat',
+  [typePet.Mice]: 'Mice',
+};
+const PetList = withProps(({ petList }) => ({
+  items: petList,
+  renderItem: petType => petLabelText[petType]
+}))(List)
 
-const BaitButtons = ({ onClicks }) => (
-  <div>
-    <button onClick={onClicks[0]}>
-      Only Dog
-    </button>
-    <button onClick={onClicks[1]}>
-      Only Cat
-    </button>
-    <button onClick={onClicks[2]}>
-      Only Mice
-    </button>
-    <button onClick={onClicks[3]}>
-      Clear
-    </button>
-  </div>
-);
+
+const petButtonLabel = {
+  [typePet.Dog]: 'add Dog',
+  [typePet.Cat]: 'add Cat',
+  [typePet.Mice]: 'add Mice',
+};
+const PetButtons = withProps(({ addPet }) => ({
+  items: Object.keys(typePet),
+  onClickItem: addPet,
+  renderItem: type => petButtonLabel[type]
+}))(ButtonGroup)
+
+
+const baitButtonLabel = {
+  [typeBait.Meat]: 'Meat',
+  [typeBait.Fish]: 'Fish',
+  [typeBait.Peanut]: 'Peanut',
+  [typeBait.Nil]: 'clear',
+}
+const BaitButtons = withProps(({ setBait }) => ({
+  items: Object.keys(typeBait),
+  onClickItem: setBait,
+  renderItem: type => baitButtonLabel[type]
+}))(ButtonGroup)
+
 
 const Loading = () => (
   <div className="Loading">
@@ -65,30 +72,29 @@ const Loading = () => (
   </div>
 );
 
-const App = ({ onAddPet, onSelectBait, petList, bait }) => (
-  <div className="App">
-    <PetButtons
-      onClicks={[typePet.Dog, typePet.Cat, typePet.Mice].map(t => onAddPet.bind(null, t))}
-    />
-    <BaitButtons
-      onClicks={[typeBait.Meat, typeBait.Fish, typePet.Peanut, null].map(t => onSelectBait.bind(null, t))}
-    />
-    <InterestedPetList petList={petList} bait={bait}/>
-  </div>
+
+const App = withProps({ className: 'App' })('div')
+
+
+const loadingContainer = compose(
+  withState(coin(false, { sidePropName: 'ready' })),
+  prepare(({ flip }) => request().then(flip)),
+  cond([eqProp('ready', false), render(Loading)]),
 )
 
+const petListContainer = withState(queue([], { quePropName: 'petList', pushPropName: 'addPet' }));
+const baitContainer = withState(dice(typeBait.Nil, { facePropName: 'bait', rollPropName: 'setBait' }));
+
+
+const findInterestedPetsIfHaveBait = cond(
+  [not(eqProp('bait', typeBait.Nil)), withProps(findInterestedPets)]
+)
+
+
 export default compose(
-  withState({
-    petList: [],
-    ready: false,
-    bait: null,
-  }, {
-    onAddPet: ({ petList }) => pet => ({ petList: [...petList, pet] }),
-    onSelectBait: () => bait => ({ bait }),
-    onReady: () => () => ({ ready: true }),
-  }),
-  prepare(({ onReady }) => request().then(onReady)),
-  cond(
-    [eqProp('ready', false), render(Loading)]
-  )
+  loadingContainer,
+  petListContainer,
+  baitContainer,
+  findInterestedPetsIfHaveBait,
+  nest(PetButtons, BaitButtons, PetList),
 )(App);
